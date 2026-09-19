@@ -1,3 +1,6 @@
+// Application Mode ('flashcard' | 'typing')
+let currentAppMode = 'flashcard';
+
 // Application State
 let allWords = [];
 let filteredWords = [];
@@ -15,10 +18,31 @@ let autoListenDelay = localStorage.getItem('ielts_auto_listen_delay') !== null ?
 let autoListenFlipDelay = localStorage.getItem('ielts_auto_listen_flip_delay') !== null ? parseFloat(localStorage.getItem('ielts_auto_listen_flip_delay')) : 0.0;
 let autoListenTimer = null;
 
-// Settings & Synchronization State
-let gasUrl = localStorage.getItem('ielts_gas_url') || '';
+// Typing Mode State
+let typingMode = 'en-to-en'; // 'en-to-en' | 'ja-to-en'
+let typingFilteredWords = [];
+let typingIndex = 0;
+let targetWordText = '';
+let targetChars = [];
+let typedCharIndex = 0;
+let currentWordMistyped = false;
+let typingIsShuffle = false;
+let typingIsWeakOnly = false;
+let typingIsMistakeOnly = false;
+let typingSoundEnabled = true;
+let typingTtsEnabled = true;
+let sessionMistypes = new Set(); // Word numbers mistyped in this session
+let typingMistakesMap = new Map(); // All-time mistake DB: wordNo -> { wordNo, word, count, lastAt }
+let sessionTotalKeys = 0;
+let sessionMistakeKeys = 0;
+let isTransitioningWord = false;
+let isShowingHint = false;
+let audioCtx = null;
 
+// Settings & Synchronization State
+let gasUrl = localStorage.getItem('ielts_gas_url') || 'https://script.google.com/macros/s/AKfycbxmXXm4p7Gb-xRo3YxctB5CENye-8PyK8WX9NBxqwhV0OaW96DTwkQYRKzwq7eJs2kN/exec';
 let localWeakWordsKey = 'ielts_weak_words';
+let localTypingMistakesKey = 'ielts_typing_mistakes';
 let selectedVoiceName = localStorage.getItem('ielts_selected_voice') || 'default';
 let phoneticsCache = JSON.parse(localStorage.getItem('ielts_phonetics_cache') || '{}');
 
@@ -26,7 +50,15 @@ let phoneticsCache = JSON.parse(localStorage.getItem('ielts_phonetics_cache') ||
 let touchStartX = 0;
 let touchEndX = 0;
 
-// DOM Elements
+// Main Navigation Elements
+const mainAppContainer = document.getElementById('main-app-container');
+const navTabFlashcard = document.getElementById('nav-tab-flashcard');
+const navTabTyping = document.getElementById('nav-tab-typing');
+const flashcardHeader = document.getElementById('flashcard-header');
+const flashcardView = document.getElementById('flashcard-view');
+const typingView = document.getElementById('typing-view');
+
+// Flashcard DOM Elements
 const flashcard = document.getElementById('flashcard');
 const searchInput = document.getElementById('search-input');
 const searchSuggestions = document.getElementById('search-suggestions');
@@ -59,6 +91,56 @@ const ttsWave = document.getElementById('tts-wave');
 const weakToggleBtn = document.getElementById('weak-toggle-btn');
 const shuffleBtn = document.getElementById('shuffle-btn');
 
+// Typing Mode DOM Elements
+const typingModeEnBtn = document.getElementById('typing-mode-en-btn');
+const typingModeJaBtn = document.getElementById('typing-mode-ja-btn');
+const typingLevelFilter = document.getElementById('typing-level-filter');
+const typingWordSelect = document.getElementById('typing-word-select');
+const typingWeakFilterBtn = document.getElementById('typing-weak-filter-btn');
+const typingMistakeFilterBtn = document.getElementById('typing-mistake-filter-btn');
+const typingMistakeBadgeCount = document.getElementById('typing-mistake-badge-count');
+const typingShuffleBtn = document.getElementById('typing-shuffle-btn');
+const typingTtsToggleBtn = document.getElementById('typing-tts-toggle-btn');
+const typingSoundToggleBtn = document.getElementById('typing-sound-toggle-btn');
+
+const typingCurrentIdx = document.getElementById('typing-current-idx');
+const typingTotalCnt = document.getElementById('typing-total-cnt');
+const typingAccuracyVal = document.getElementById('typing-accuracy-val');
+const typingCurrentMistakes = document.getElementById('typing-current-mistakes');
+const typingProgressBar = document.getElementById('typing-progress-bar');
+
+const typingBoard = document.getElementById('typing-board');
+const typingHiddenInput = document.getElementById('typing-hidden-input');
+const typingCardNo = document.getElementById('typing-card-no');
+const typingCardLevel = document.getElementById('typing-card-level');
+const typingCardPos = document.getElementById('typing-card-pos');
+const typingCardWeakBtn = document.getElementById('typing-card-weak-btn');
+const typingCardMeaning = document.getElementById('typing-card-meaning');
+const typingCardPhonetic = document.getElementById('typing-card-phonetic');
+const typingDisplay = document.getElementById('typing-display');
+const typingHintPeek = document.getElementById('typing-hint-peek');
+const typingHintWord = document.getElementById('typing-hint-word');
+const typingExampleBox = document.getElementById('typing-example-box');
+const typingExampleEn = document.getElementById('typing-example-en');
+const typingExampleJa = document.getElementById('typing-example-ja');
+
+const typingPrevWordBtn = document.getElementById('typing-prev-word-btn');
+const typingSpeakBtn = document.getElementById('typing-speak-btn');
+const typingSkipWordBtn = document.getElementById('typing-skip-word-btn');
+
+// Typing Result Modal Elements
+const typingResultModal = document.getElementById('typing-result-modal');
+const typingResultCloseBtn = document.getElementById('typing-result-close-btn');
+const resultAccuracy = document.getElementById('result-accuracy');
+const resultMistakes = document.getElementById('result-mistakes');
+const resultWordCount = document.getElementById('result-word-count');
+const resultMistakeCountBadge = document.getElementById('result-mistake-count-badge');
+const resultMistakesList = document.getElementById('result-mistakes-list');
+const typingRetryMistakesBtn = document.getElementById('typing-retry-mistakes-btn');
+const resultRetryCount = document.getElementById('result-retry-count');
+const typingRestartSessionBtn = document.getElementById('typing-restart-session-btn');
+const typingBackToCardsBtn = document.getElementById('typing-back-to-cards-btn');
+
 // Settings Elements
 const settingsToggleBtn = document.getElementById('settings-toggle-btn');
 const settingsModal = document.getElementById('settings-modal');
@@ -73,6 +155,7 @@ const autoListenDelaySelect = document.getElementById('auto-listen-delay-select'
 const saveSettingsBtn = document.getElementById('save-settings-btn');
 const forceUpdateBtn = document.getElementById('force-update-btn');
 const updateBtnText = document.getElementById('update-btn-text');
+const clearMistakesBtn = document.getElementById('clear-mistakes-btn');
 
 // Release Notes Elements
 const releaseNotesToggleBtn = document.getElementById('release-notes-toggle-btn');
@@ -144,6 +227,7 @@ async function loadWordsFromSources() {
 window.addEventListener('DOMContentLoaded', () => {
   // Load local weak words cache first
   loadLocalWeakWords();
+  loadLocalTypingMistakes();
   
   // Register Service Worker for offline use
   if ('serviceWorker' in navigator) {
@@ -223,16 +307,21 @@ async function initApp() {
     window.speechSynthesis.onvoiceschanged = populateVoicesList;
   }
 
-  // Sync weak words with Google Sheet if URL exists
+  // Sync weak words & mistake words with Google Sheet if URL exists
   if (gasUrl) {
     syncWithSpreadsheet();
+    syncMistakesWithSpreadsheet();
   }
 
   // Restore last studied word position (retrieve before applyFilters overwrites it)
   const lastWordNo = localStorage.getItem('ielts_last_word_no');
 
-  // Initial Filter & Render
+  // Initial Filter & Render for flashcard
   applyFilters();
+  
+  // Initialize typing word select list
+  populateTypingWordSelect();
+  updateMistakeBadgeUI();
   
   if (lastWordNo) {
     const lastIdx = filteredWords.findIndex(w => w.No.toString() === lastWordNo.toString());
@@ -368,8 +457,93 @@ function setupEventListeners() {
     });
   }
 
+  // Navigation Tabs Switching
+  if (navTabFlashcard) {
+    navTabFlashcard.addEventListener('click', () => switchAppMode('flashcard'));
+  }
+  if (navTabTyping) {
+    navTabTyping.addEventListener('click', () => switchAppMode('typing'));
+  }
+
+  // Typing Mode Event Listeners
+  if (typingModeEnBtn) {
+    typingModeEnBtn.addEventListener('click', () => setTypingMode('en-to-en'));
+  }
+  if (typingModeJaBtn) {
+    typingModeJaBtn.addEventListener('click', () => setTypingMode('ja-to-en'));
+  }
+  if (typingLevelFilter) {
+    typingLevelFilter.addEventListener('change', () => applyTypingFilters());
+  }
+  if (typingWordSelect) {
+    typingWordSelect.addEventListener('change', (e) => jumpToTypingWord(e.target.value));
+  }
+  if (typingWeakFilterBtn) {
+    typingWeakFilterBtn.addEventListener('click', toggleTypingWeakFilter);
+  }
+  if (typingMistakeFilterBtn) {
+    typingMistakeFilterBtn.addEventListener('click', toggleTypingMistakeFilter);
+  }
+  if (typingShuffleBtn) {
+    typingShuffleBtn.addEventListener('click', toggleTypingShuffle);
+  }
+  if (typingTtsToggleBtn) {
+    typingTtsToggleBtn.addEventListener('click', toggleTypingTts);
+  }
+  if (typingSoundToggleBtn) {
+    typingSoundToggleBtn.addEventListener('click', toggleTypingSound);
+  }
+  if (typingCardWeakBtn) {
+    typingCardWeakBtn.addEventListener('click', toggleWeakWordInTyping);
+  }
+  if (typingPrevWordBtn) {
+    typingPrevWordBtn.addEventListener('click', () => navigateTyping(-1));
+  }
+  if (typingSkipWordBtn) {
+    typingSkipWordBtn.addEventListener('click', skipTypingWord);
+  }
+  if (typingSpeakBtn) {
+    typingSpeakBtn.addEventListener('click', () => speakWordText(targetWordText));
+  }
+  if (typingBoard) {
+    typingBoard.addEventListener('click', () => {
+      if (typingHiddenInput) typingHiddenInput.focus();
+    });
+  }
+
+  // Typing Result Modal Actions
+  if (typingResultCloseBtn) {
+    typingResultCloseBtn.addEventListener('click', hideTypingResultModal);
+  }
+  if (typingResultModal) {
+    typingResultModal.addEventListener('click', (e) => {
+      if (e.target === typingResultModal) hideTypingResultModal();
+    });
+  }
+  if (typingRetryMistakesBtn) {
+    typingRetryMistakesBtn.addEventListener('click', retryMistypedWords);
+  }
+  if (typingRestartSessionBtn) {
+    typingRestartSessionBtn.addEventListener('click', restartTypingSession);
+  }
+  if (typingBackToCardsBtn) {
+    typingBackToCardsBtn.addEventListener('click', () => {
+      hideTypingResultModal();
+      switchAppMode('flashcard');
+    });
+  }
+  if (clearMistakesBtn) {
+    clearMistakesBtn.addEventListener('click', clearAllMistakes);
+  }
+
   // Keyboard navigation support
   document.addEventListener('keydown', (e) => {
+    // If in typing practice mode, delegate to typing handler
+    if (currentAppMode === 'typing') {
+      handleTypingKeyDown(e);
+      return;
+    }
+
     if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT' || document.activeElement.tagName === 'TEXTAREA') {
       return; // Skip when typing in search, input, or textarea fields
     }
@@ -1008,6 +1182,7 @@ function saveSettings() {
     localStorage.setItem('ielts_gas_url', gasUrl);
     if (gasUrl) {
       syncWithSpreadsheet();
+      syncMistakesWithSpreadsheet();
       loadWordsFromSources().then(() => applyFilters());
     } else {
       updateSyncStatus('offline', '未接続（ローカル動作中）');
@@ -1188,6 +1363,712 @@ function populateWordSelect(wordsToShow = allWords) {
   if (currentVal && wordsToShow.some(w => w.No.toString() === currentVal.toString())) {
     wordSelect.value = currentVal;
   }
+}
+
+// =========================================================
+// Typing Practice Mode Implementation (PC-oriented)
+// =========================================================
+
+// Speech Helper for typing mode
+function speakWordText(text) {
+  if (!text || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'en-US';
+  utterance.rate = 1.0;
+  
+  if (selectedVoiceName !== 'default') {
+    const voices = window.speechSynthesis.getVoices();
+    const voice = voices.find(v => v.name === selectedVoiceName);
+    if (voice) utterance.voice = voice;
+  }
+  
+  window.speechSynthesis.speak(utterance);
+}
+
+// Web Audio API Synthesizer (No external audio files needed)
+function initAudioContext() {
+  if (!audioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+      audioCtx = new AudioContextClass();
+    }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+function playAudioSound(type) {
+  if (!typingSoundEnabled) return;
+  initAudioContext();
+  if (!audioCtx) return;
+
+  try {
+    const now = audioCtx.currentTime;
+    
+    if (type === 'type') {
+      // Crisp click sound
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(400, now + 0.03);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.03);
+    } else if (type === 'correct') {
+      // Cheerful 2-tone chime (E5 -> A5)
+      const osc1 = audioCtx.createOscillator();
+      const osc2 = audioCtx.createOscillator();
+      const gain1 = audioCtx.createGain();
+      const gain2 = audioCtx.createGain();
+
+      osc1.type = 'triangle';
+      osc1.frequency.setValueAtTime(659.25, now); // E5
+      gain1.gain.setValueAtTime(0.1, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      osc1.connect(gain1);
+      gain1.connect(audioCtx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.15);
+
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(880.00, now + 0.08); // A5
+      gain2.gain.setValueAtTime(0.12, now + 0.08);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.start(now + 0.08);
+      osc2.stop(now + 0.3);
+    } else if (type === 'mistake') {
+      // Low buzz error sound
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.linearRampToValueAtTime(110, now + 0.1);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    }
+  } catch (err) {
+    console.warn('Audio playback error', err);
+  }
+}
+
+// ---------------------------------------------------------
+// Mistyped Words DB Management (Separate from Weak Words)
+// ---------------------------------------------------------
+
+function loadLocalTypingMistakes() {
+  try {
+    const raw = localStorage.getItem(localTypingMistakesKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        typingMistakesMap.clear();
+        parsed.forEach(item => {
+          if (item && item.wordNo) {
+            typingMistakesMap.set(item.wordNo, item);
+          }
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load typing mistakes from localStorage', e);
+  }
+  updateMistakeBadgeUI();
+}
+
+function saveLocalTypingMistakes() {
+  try {
+    const list = Array.from(typingMistakesMap.values());
+    localStorage.setItem(localTypingMistakesKey, JSON.stringify(list));
+  } catch (e) {
+    console.error('Failed to save typing mistakes', e);
+  }
+  updateMistakeBadgeUI();
+}
+
+function updateMistakeBadgeUI() {
+  const count = typingMistakesMap.size;
+  if (typingMistakeBadgeCount) {
+    typingMistakeBadgeCount.textContent = count;
+  }
+}
+
+function recordTypingMistake(word) {
+  if (!word || !word.No) return;
+  const wordNo = word.No;
+  const existing = typingMistakesMap.get(wordNo);
+  const nowStr = new Date().toISOString();
+  
+  if (existing) {
+    existing.count = (existing.count || 1) + 1;
+    existing.lastAt = nowStr;
+    existing.word = word.Word;
+  } else {
+    typingMistakesMap.set(wordNo, {
+      wordNo: wordNo,
+      word: word.Word,
+      count: 1,
+      lastAt: nowStr
+    });
+  }
+  
+  saveLocalTypingMistakes();
+  sendMistakeUpdateToGas('add_mistake', wordNo, word.Word);
+}
+
+async function syncMistakesWithSpreadsheet() {
+  if (!gasUrl) return;
+  try {
+    const url = `${gasUrl}?action=get_mistakes&t=${Date.now()}`;
+    const response = await fetch(url);
+    if (!response.ok) return;
+    
+    const result = await response.json();
+    if (result.success && Array.isArray(result.mistakes)) {
+      result.mistakes.forEach(item => {
+        if (!item || !item.wordNo) return;
+        const current = typingMistakesMap.get(item.wordNo);
+        if (current) {
+          current.count = Math.max(current.count || 1, item.count || 1);
+          current.word = item.word || current.word;
+        } else {
+          typingMistakesMap.set(item.wordNo, {
+            wordNo: item.wordNo,
+            word: item.word,
+            count: item.count || 1,
+            lastAt: item.lastMistypedAt || ''
+          });
+        }
+      });
+      saveLocalTypingMistakes();
+    }
+  } catch (err) {
+    console.warn('Sync mistakes failed:', err);
+  }
+}
+
+async function sendMistakeUpdateToGas(action, wordNo, wordText) {
+  if (!gasUrl) return;
+  try {
+    const url = `${gasUrl}?action=${action}&wordNo=${encodeURIComponent(wordNo)}&word=${encodeURIComponent(wordText || '')}&t=${Date.now()}`;
+    await fetch(url);
+  } catch (err) {
+    console.warn(`sendMistakeUpdateToGas (${action}) failed:`, err);
+  }
+}
+
+async function clearAllMistakes() {
+  if (!confirm('これまでに記録されたミスタイプ単語の履歴をすべて消去しますか？\n（単語帳の苦手単語★には影響しません）')) {
+    return;
+  }
+  typingMistakesMap.clear();
+  saveLocalTypingMistakes();
+  sendMistakeUpdateToGas('clear_mistakes', '', '');
+  if (typingIsMistakeOnly) {
+    typingIsMistakeOnly = false;
+    typingMistakeFilterBtn.classList.remove('active');
+    typingMistakeFilterBtn.setAttribute('aria-pressed', 'false');
+  }
+  applyTypingFilters();
+  alert('ミスタイプ単語の履歴をリセットしました。');
+}
+
+// ---------------------------------------------------------
+// Navigation & Mode Switching
+// ---------------------------------------------------------
+
+function switchAppMode(mode) {
+  currentAppMode = mode;
+  
+  if (mode === 'typing') {
+    stopAutoListening();
+    navTabFlashcard.classList.remove('active');
+    navTabFlashcard.setAttribute('aria-selected', 'false');
+    navTabTyping.classList.add('active');
+    navTabTyping.setAttribute('aria-selected', 'true');
+    
+    flashcardHeader.classList.add('hidden');
+    flashcardView.classList.add('hidden');
+    typingView.classList.remove('hidden');
+    mainAppContainer.classList.add('typing-active');
+    
+    // Set level filter to match flashcard level if possible
+    if (typingLevelFilter && levelFilter) {
+      typingLevelFilter.value = levelFilter.value;
+    }
+    
+    applyTypingFilters();
+    setTimeout(() => {
+      if (typingHiddenInput) typingHiddenInput.focus();
+    }, 100);
+  } else {
+    navTabTyping.classList.remove('active');
+    navTabTyping.setAttribute('aria-selected', 'false');
+    navTabFlashcard.classList.add('active');
+    navTabFlashcard.setAttribute('aria-selected', 'true');
+    
+    typingView.classList.add('hidden');
+    flashcardHeader.classList.remove('hidden');
+    flashcardView.classList.remove('hidden');
+    mainAppContainer.classList.remove('typing-active');
+    
+    applyFilters();
+  }
+}
+
+function setTypingMode(mode) {
+  typingMode = mode;
+  if (mode === 'en-to-en') {
+    typingModeEnBtn.classList.add('active');
+    typingModeEnBtn.setAttribute('aria-checked', 'true');
+    typingModeJaBtn.classList.remove('active');
+    typingModeJaBtn.setAttribute('aria-checked', 'false');
+  } else {
+    typingModeJaBtn.classList.add('active');
+    typingModeJaBtn.setAttribute('aria-checked', 'true');
+    typingModeEnBtn.classList.remove('active');
+    typingModeEnBtn.setAttribute('aria-checked', 'false');
+  }
+  renderTypingDisplay();
+  if (typingHiddenInput) typingHiddenInput.focus();
+}
+
+// ---------------------------------------------------------
+// Typing Filters & Data Slicing
+// ---------------------------------------------------------
+
+function applyTypingFilters() {
+  const selectedLevel = typingLevelFilter.value;
+  
+  typingFilteredWords = allWords.filter(word => {
+    // Level match
+    if (selectedLevel !== 'all' && word.Level !== selectedLevel) return false;
+    
+    // Weak words filter (from flashcards ★)
+    if (typingIsWeakOnly && !weakWords.has(word.No)) return false;
+    
+    // Mistyped words only filter
+    if (typingIsMistakeOnly && !typingMistakesMap.has(word.No)) return false;
+    
+    return true;
+  });
+  
+  if (typingIsShuffle) {
+    shuffleArray(typingFilteredWords);
+  }
+  
+  typingIndex = 0;
+  sessionTotalKeys = 0;
+  sessionMistakeKeys = 0;
+  sessionMistypes.clear();
+  
+  populateTypingWordSelect(typingFilteredWords);
+  displayCurrentTypingWord();
+}
+
+function populateTypingWordSelect(wordsToShow = allWords) {
+  if (!typingWordSelect) return;
+  
+  typingWordSelect.innerHTML = '<option value="">単語を選択してジャンプ...</option>';
+  const sortedWords = [...wordsToShow].sort((a, b) => parseInt(a.No) - parseInt(b.No));
+  
+  sortedWords.forEach(word => {
+    const opt = document.createElement('option');
+    opt.value = word.No;
+    opt.textContent = `No.${word.No} - ${word.Word}`;
+    typingWordSelect.appendChild(opt);
+  });
+}
+
+function jumpToTypingWord(wordNo) {
+  if (!wordNo) return;
+  const targetIdx = typingFilteredWords.findIndex(w => w.No === wordNo);
+  if (targetIdx !== -1) {
+    typingIndex = targetIdx;
+    displayCurrentTypingWord();
+  }
+}
+
+function toggleTypingWeakFilter() {
+  typingIsWeakOnly = !typingIsWeakOnly;
+  typingWeakFilterBtn.classList.toggle('active', typingIsWeakOnly);
+  typingWeakFilterBtn.setAttribute('aria-pressed', String(typingIsWeakOnly));
+  applyTypingFilters();
+}
+
+function toggleTypingMistakeFilter() {
+  typingIsMistakeOnly = !typingIsMistakeOnly;
+  typingMistakeFilterBtn.classList.toggle('active', typingIsMistakeOnly);
+  typingMistakeFilterBtn.setAttribute('aria-pressed', String(typingIsMistakeOnly));
+  applyTypingFilters();
+}
+
+function toggleTypingShuffle() {
+  typingIsShuffle = !typingIsShuffle;
+  typingShuffleBtn.classList.toggle('active', typingIsShuffle);
+  typingShuffleBtn.setAttribute('aria-pressed', String(typingIsShuffle));
+  applyTypingFilters();
+}
+
+function toggleTypingTts() {
+  typingTtsEnabled = !typingTtsEnabled;
+  typingTtsToggleBtn.classList.toggle('active', typingTtsEnabled);
+}
+
+function toggleTypingSound() {
+  typingSoundEnabled = !typingSoundEnabled;
+  typingSoundToggleBtn.classList.toggle('active', typingSoundEnabled);
+}
+
+function toggleWeakWordInTyping() {
+  if (typingFilteredWords.length === 0) return;
+  const word = typingFilteredWords[typingIndex];
+  if (!word) return;
+  
+  const wordNo = word.No;
+  if (weakWords.has(wordNo)) {
+    weakWords.delete(wordNo);
+    sendWeakWordUpdateToGas('remove', wordNo);
+  } else {
+    weakWords.add(wordNo);
+    sendWeakWordUpdateToGas('add', wordNo);
+  }
+  saveLocalWeakWords();
+  
+  // Update star icon in typing card
+  const isWeak = weakWords.has(wordNo);
+  typingCardWeakBtn.classList.toggle('active', isWeak);
+  updateActiveStates(); // Keep flashcard in sync
+}
+
+// ---------------------------------------------------------
+// Display & Render Current Typing Word
+// ---------------------------------------------------------
+
+function displayCurrentTypingWord() {
+  if (typingFilteredWords.length === 0) {
+    typingCurrentIdx.textContent = '0';
+    typingTotalCnt.textContent = '0';
+    typingProgressBar.style.width = '0%';
+    typingCardNo.textContent = '----';
+    typingCardLevel.textContent = 'None';
+    typingCardPos.textContent = '-';
+    typingCardMeaning.textContent = '該当する単語がありません';
+    typingCardPhonetic.textContent = '';
+    typingExampleEn.textContent = 'フィルター条件を変更してください。';
+    typingExampleJa.textContent = '';
+    typingDisplay.innerHTML = '<span style="font-size: 20px; color: var(--text-muted);">No Words Available</span>';
+    typingHintPeek.classList.add('hidden');
+    return;
+  }
+  
+  if (typingIndex >= typingFilteredWords.length) {
+    showTypingResultModal();
+    return;
+  }
+  
+  const word = typingFilteredWords[typingIndex];
+  targetWordText = word.Word;
+  targetChars = word.Word.split('');
+  typedCharIndex = 0;
+  currentWordMistyped = false;
+  isTransitioningWord = false;
+  isShowingHint = false;
+  
+  // Card Info
+  typingCardNo.textContent = word.No;
+  typingCardLevel.textContent = word.Level;
+  typingCardPos.textContent = word.POS || '---';
+  typingCardMeaning.textContent = word.Meaning;
+  typingCardPhonetic.textContent = word.Phonetic || '';
+  typingExampleEn.textContent = word.Example_EN || '';
+  typingExampleJa.textContent = word.Example_JA || '';
+  
+  // Sync weak star state
+  typingCardWeakBtn.classList.toggle('active', weakWords.has(word.No));
+  
+  // Reset hint
+  typingHintPeek.classList.add('hidden');
+  typingHintWord.textContent = targetWordText;
+  
+  // Word select dropdown sync
+  if (typingWordSelect) {
+    typingWordSelect.value = word.No;
+  }
+  
+  renderTypingDisplay();
+  updateTypingStatsUI();
+  
+  if (typingHiddenInput) {
+    typingHiddenInput.value = '';
+    typingHiddenInput.focus();
+  }
+}
+
+function renderTypingDisplay() {
+  typingDisplay.innerHTML = '';
+  
+  if (typingMode === 'en-to-en') {
+    // English Shown Mode: Display actual letters with status colors
+    targetChars.forEach((char, i) => {
+      const span = document.createElement('span');
+      span.textContent = char;
+      
+      if (char === ' ') {
+        span.className = 'char-space';
+        span.innerHTML = '&nbsp;';
+      } else {
+        if (i < typedCharIndex) {
+          span.className = 'char-done';
+        } else if (i === typedCharIndex) {
+          span.className = 'char-current';
+        } else {
+          span.className = 'char-pending';
+        }
+      }
+      typingDisplay.appendChild(span);
+    });
+  } else {
+    // Japanese Shown Mode: Cloze / Hidden Mode
+    targetChars.forEach((char, i) => {
+      if (char === ' ') {
+        const spaceSpan = document.createElement('span');
+        spaceSpan.className = 'char-space';
+        spaceSpan.innerHTML = '&nbsp;';
+        typingDisplay.appendChild(spaceSpan);
+      } else {
+        const box = document.createElement('span');
+        box.className = 'char-hidden-box';
+        
+        if (i < typedCharIndex) {
+          box.textContent = char;
+          box.classList.add('char-done');
+        } else if (i === typedCharIndex) {
+          box.textContent = isShowingHint ? char : '_';
+          box.classList.add('char-current');
+        } else {
+          box.textContent = isShowingHint ? char : '_';
+          box.classList.add('char-pending');
+        }
+        typingDisplay.appendChild(box);
+      }
+    });
+  }
+}
+
+function updateTypingStatsUI() {
+  const total = typingFilteredWords.length;
+  const currentNum = Math.min(typingIndex + 1, total);
+  
+  typingCurrentIdx.textContent = currentNum;
+  typingTotalCnt.textContent = total;
+  
+  const pct = total > 0 ? ((typingIndex) / total) * 100 : 0;
+  typingProgressBar.style.width = `${pct}%`;
+  
+  // Accuracy calculation
+  let acc = 100;
+  if (sessionTotalKeys > 0) {
+    acc = Math.max(0, Math.round(((sessionTotalKeys - sessionMistakeKeys) / sessionTotalKeys) * 100));
+  }
+  typingAccuracyVal.textContent = `${acc}%`;
+  typingCurrentMistakes.textContent = sessionMistakeKeys;
+}
+
+// ---------------------------------------------------------
+// Keyboard Input Handler for Typing
+// ---------------------------------------------------------
+
+function handleTypingKeyDown(e) {
+  // If user is focused on a select box or outside typing board, do not process
+  if (document.activeElement === typingLevelFilter || document.activeElement === typingWordSelect || document.activeElement === gasUrlInput) {
+    return;
+  }
+  
+  if (typingFilteredWords.length === 0 || isTransitioningWord) return;
+  
+  const currentWord = typingFilteredWords[typingIndex];
+  if (!currentWord) return;
+  
+  initAudioContext();
+  
+  // 1. Shortcuts
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    isShowingHint = !isShowingHint;
+    typingHintPeek.classList.toggle('hidden', !isShowingHint);
+    renderTypingDisplay();
+    return;
+  }
+  
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    skipTypingWord();
+    return;
+  }
+  
+  // Space shortcut: If current character is NOT a space, play audio pronunciation
+  const expectedChar = targetChars[typedCharIndex];
+  if (e.key === ' ' && expectedChar !== ' ') {
+    e.preventDefault();
+    speakWordText(targetWordText);
+    return;
+  }
+  
+  // Ignore modifier keys, functional keys
+  if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) {
+    return;
+  }
+  
+  e.preventDefault();
+  
+  const pressedChar = e.key;
+  
+  // Compare case-insensitively for user convenience
+  const isMatch = pressedChar.toLowerCase() === expectedChar.toLowerCase();
+  
+  sessionTotalKeys++;
+  
+  if (isMatch) {
+    typedCharIndex++;
+    playAudioSound('type');
+    renderTypingDisplay();
+    
+    // Check if word completed
+    if (typedCharIndex >= targetChars.length) {
+      isTransitioningWord = true;
+      playAudioSound('correct');
+      
+      // If this word had mistakes, record to session & DB
+      if (currentWordMistyped) {
+        sessionMistypes.add(currentWord.No);
+        recordTypingMistake(currentWord);
+      }
+      
+      // TTS playback if enabled
+      if (typingTtsEnabled) {
+        speakWordText(targetWordText);
+      }
+      
+      // Advance to next word after brief pleasant delay
+      setTimeout(() => {
+        typingIndex++;
+        if (typingIndex >= typingFilteredWords.length) {
+          showTypingResultModal();
+        } else {
+          displayCurrentTypingWord();
+        }
+      }, 350);
+    }
+  } else {
+    // Mistake
+    currentWordMistyped = true;
+    sessionMistakeKeys++;
+    sessionMistypes.add(currentWord.No);
+    recordTypingMistake(currentWord);
+    
+    playAudioSound('mistake');
+    
+    // Shake animation feedback
+    typingDisplay.classList.remove('shake');
+    void typingDisplay.offsetWidth; // Trigger reflow
+    typingDisplay.classList.add('shake');
+    
+    updateTypingStatsUI();
+  }
+}
+
+function navigateTyping(delta) {
+  const newIndex = typingIndex + delta;
+  if (newIndex >= 0 && newIndex < typingFilteredWords.length) {
+    typingIndex = newIndex;
+    displayCurrentTypingWord();
+  }
+}
+
+function skipTypingWord() {
+  if (typingFilteredWords.length === 0) return;
+  const word = typingFilteredWords[typingIndex];
+  // Count as mistake if skipped
+  sessionMistypes.add(word.No);
+  recordTypingMistake(word);
+  
+  typingIndex++;
+  if (typingIndex >= typingFilteredWords.length) {
+    showTypingResultModal();
+  } else {
+    displayCurrentTypingWord();
+  }
+}
+
+// ---------------------------------------------------------
+// Result Modal & Retry Logic
+// ---------------------------------------------------------
+
+function showTypingResultModal() {
+  let acc = 100;
+  if (sessionTotalKeys > 0) {
+    acc = Math.max(0, Math.round(((sessionTotalKeys - sessionMistakeKeys) / sessionTotalKeys) * 100));
+  }
+  resultAccuracy.textContent = `${acc}%`;
+  resultMistakes.textContent = `${sessionMistakeKeys}回`;
+  resultWordCount.textContent = `${typingFilteredWords.length}語`;
+  
+  // Render mistake words list
+  resultMistakesList.innerHTML = '';
+  const mistypedList = allWords.filter(w => sessionMistypes.has(w.No));
+  resultMistakeCountBadge.textContent = mistypedList.length;
+  
+  if (mistypedList.length > 0) {
+    mistypedList.forEach(w => {
+      const row = document.createElement('div');
+      row.className = 'mistake-row';
+      row.innerHTML = `
+        <span class="mistake-row-word">No.${w.No} ${w.Word}</span>
+        <span class="mistake-row-meaning">${w.Meaning}</span>
+      `;
+      resultMistakesList.appendChild(row);
+    });
+    
+    typingRetryMistakesBtn.classList.remove('hidden');
+    resultRetryCount.textContent = mistypedList.length;
+  } else {
+    resultMistakesList.innerHTML = '<div style="text-align: center; color: var(--secondary); font-size: 13px; padding: 8px;">ノーミスパーフェクト！素晴らしい！ ✨</div>';
+    typingRetryMistakesBtn.classList.add('hidden');
+  }
+  
+  typingResultModal.classList.remove('hidden');
+}
+
+function hideTypingResultModal() {
+  typingResultModal.classList.add('hidden');
+  if (typingHiddenInput) typingHiddenInput.focus();
+}
+
+function retryMistypedWords() {
+  hideTypingResultModal();
+  // Enable mistyped-only mode
+  typingIsMistakeOnly = true;
+  typingMistakeFilterBtn.classList.add('active');
+  typingMistakeFilterBtn.setAttribute('aria-pressed', 'true');
+  applyTypingFilters();
+}
+
+function restartTypingSession() {
+  hideTypingResultModal();
+  applyTypingFilters();
 }
 
 

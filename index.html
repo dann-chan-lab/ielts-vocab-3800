@@ -32,9 +32,21 @@
   <div class="bg-glow glow-2"></div>
   <div class="bg-glow glow-3"></div>
 
-  <div class="app-container">
-    <!-- Header -->
-    <header class="app-header">
+  <div class="app-container" id="main-app-container">
+    <!-- Navigation Tabs (Cards vs Typing) -->
+    <nav class="app-nav-tabs" aria-label="学習モード切替">
+      <button id="nav-tab-flashcard" class="nav-tab active" aria-selected="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+        <span>単語帳</span>
+      </button>
+      <button id="nav-tab-typing" class="nav-tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6" y2="8"></line><line x1="10" y1="8" x2="10" y2="8"></line><line x1="14" y1="8" x2="14" y2="8"></line><line x1="18" y1="8" x2="18" y2="8"></line><line x1="6" y1="12" x2="6" y2="12"></line><line x1="10" y1="12" x2="10" y2="12"></line><line x1="14" y1="12" x2="14" y2="12"></line><line x1="18" y1="12" x2="18" y2="12"></line><line x1="7" y1="16" x2="17" y2="16"></line></svg>
+        <span>タイピング <span class="pc-badge">PC</span></span>
+      </button>
+    </nav>
+
+    <!-- Header (Flashcard Mode) -->
+    <header class="app-header" id="flashcard-header">
       <div class="header-main">
         <h1>IELTS <span class="text-gradient">Vocab 3800</span></h1>
         <div class="header-actions" style="display: flex; gap: 8px;">
@@ -83,8 +95,8 @@
       </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="app-main">
+    <!-- Main Content (Flashcard Mode) -->
+    <main class="app-main" id="flashcard-view">
       <!-- Progress Indicator -->
       <div class="progress-section">
         <div class="progress-text">
@@ -179,6 +191,148 @@
         </button>
       </div>
     </main>
+
+    <!-- Main Content (Typing Mode: PC-oriented) -->
+    <main class="app-main typing-main hidden" id="typing-view">
+      <!-- Typing Top Bar: Controls & Filters -->
+      <div class="typing-header-controls">
+        <div class="typing-mode-segmented-control" role="radiogroup" aria-label="出題形式">
+          <button type="button" id="typing-mode-en-btn" class="segmented-btn active" role="radio" aria-checked="true" title="英単語を見ながらスペルをタイピング">
+            英語表示
+          </button>
+          <button type="button" id="typing-mode-ja-btn" class="segmented-btn" role="radio" aria-checked="false" title="日本語の意味から英単語を想起してタイピング">
+            日本語表示
+          </button>
+        </div>
+
+        <div class="typing-filters-row">
+          <div class="select-wrapper">
+            <select id="typing-level-filter" aria-label="レベル選択">
+              <option value="all">すべてのレベル</option>
+              <option value="基本単語">基本単語</option>
+              <option value="コア単語 レベル1">コア単語 レベル1</option>
+              <option value="コア単語 レベル2">コア単語 レベル2</option>
+              <option value="コア単語 レベル3">コア単語 レベル3</option>
+              <option value="コア単語 レベル4">コア単語 レベル4</option>
+              <option value="分野別単語">分野別単語</option>
+            </select>
+          </div>
+
+          <div class="select-wrapper typing-word-select-wrapper">
+            <select id="typing-word-select" aria-label="単語を選択してジャンプ">
+              <option value="">単語を選択してジャンプ...</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="typing-sub-filters">
+          <button id="typing-weak-filter-btn" class="toggle-btn filter-pill" aria-pressed="false" title="単語帳で苦手登録した単語のみ出題">
+            <svg class="star-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            <span>苦手のみ</span>
+          </button>
+
+          <button id="typing-mistake-filter-btn" class="toggle-btn filter-pill mistake-filter-pill" aria-pressed="false" title="タイピングでミスタイプした単語のみ出題">
+            <svg class="mistake-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+            <span>ミス単語のみ (<span id="typing-mistake-badge-count">0</span>)</span>
+          </button>
+
+          <button id="typing-shuffle-btn" class="toggle-btn filter-pill" aria-pressed="false" title="出題順をシャッフル">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+            <span>シャッフル</span>
+          </button>
+
+          <div class="typing-quick-toggles">
+            <button id="typing-tts-toggle-btn" class="icon-btn-small active" aria-label="単語読み上げ" title="正解時に単語を読み上げ">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+            </button>
+            <button id="typing-sound-toggle-btn" class="icon-btn-small active" aria-label="打鍵・正解効果音" title="タイピング効果音ON/OFF">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Typing Progress & Stats -->
+      <div class="typing-stats-container">
+        <div class="typing-stats-row">
+          <div class="stat-item">
+            <span class="stat-label">PROGRESS</span>
+            <span class="stat-val"><span id="typing-current-idx">0</span> / <span id="typing-total-cnt">0</span></span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">ACCURACY</span>
+            <span class="stat-val" id="typing-accuracy-val">100%</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">MISTAKES</span>
+            <span class="stat-val mistake-text" id="typing-current-mistakes">0</span>
+          </div>
+        </div>
+        <div class="progress-bar-container">
+          <div id="typing-progress-bar" class="progress-bar"></div>
+        </div>
+      </div>
+
+      <!-- Typing Play Board (Card) -->
+      <div class="typing-board" id="typing-board" tabindex="0">
+        <!-- Hidden input to maintain mobile keyboard compatibility if accessed on touch device -->
+        <input type="text" id="typing-hidden-input" class="typing-hidden-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="タイピング入力">
+
+        <div class="typing-card-header">
+          <div class="typing-card-meta">
+            <span class="word-no" id="typing-card-no">0000</span>
+            <span class="word-badge" id="typing-card-level">Basic</span>
+            <span class="pos-badge" id="typing-card-pos">動</span>
+          </div>
+          <button id="typing-card-weak-btn" class="icon-btn-star" aria-label="単語帳の苦手単語に登録" title="単語帳の苦手単語に登録">
+            <svg class="star-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+          </button>
+        </div>
+
+        <div class="typing-card-meaning-wrap">
+          <div class="typing-meaning" id="typing-card-meaning">読み込み中...</div>
+          <div class="typing-phonetic" id="typing-card-phonetic"></div>
+        </div>
+
+        <!-- Target Word Typing Display Area -->
+        <div class="typing-display-wrapper">
+          <div class="typing-display" id="typing-display">
+            <!-- Dynamically populated letters -->
+          </div>
+          <div class="typing-hint-peek hidden" id="typing-hint-peek">
+            答え: <span id="typing-hint-word"></span>
+          </div>
+        </div>
+
+        <!-- Example Sentence Context -->
+        <div class="typing-example-box" id="typing-example-box">
+          <div class="example-label">EXAMPLE</div>
+          <div class="example-text-en" id="typing-example-en">Please wait...</div>
+          <div class="example-text-ja" id="typing-example-ja">データを準備しています。</div>
+        </div>
+
+        <!-- Typing Shortcuts & Action Guide -->
+        <div class="typing-footer-guide">
+          <span class="guide-item"><kbd>Tab</kbd> 答えをチラ見せ</span>
+          <span class="guide-item"><kbd>Esc</kbd> スキップ</span>
+          <span class="guide-item"><kbd>Space</kbd> 発音を再生</span>
+        </div>
+      </div>
+
+      <!-- Navigation & Controls below board -->
+      <div class="typing-nav-controls">
+        <button id="typing-prev-word-btn" class="action-btn circle-btn" aria-label="前の単語">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <button id="typing-speak-btn" class="action-btn play-btn" aria-label="発音を再生">
+          <svg class="play-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+        </button>
+        <button id="typing-skip-word-btn" class="action-btn skip-btn" aria-label="この単語をスキップ">
+          <span>スキップ</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </main>
   </div>
 
   <!-- Settings Overlay Modal -->
@@ -192,7 +346,7 @@
         <div class="settings-group">
           <label for="gas-url-input">Google Apps Script Web App URL</label>
           <input type="url" id="gas-url-input" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
-          <p class="settings-help">Googleスプレッドシート上のGASをデプロイしたWebアプリのURLを入力してください。苦手単語がリアルタイムで同期されます。</p>
+          <p class="settings-help">Googleスプレッドシート上のGASをデプロイしたWebアプリのURLを入力してください。単語帳の「苦手単語（WeakWords）」およびタイピング練習の「ミスタイプ単語（TypingMistakes）」が自動で同期されます。</p>
         </div>
         
 
@@ -203,6 +357,14 @@
             <span id="sync-status-dot" class="status-dot offline"></span>
             <span id="sync-status-text">未接続（ローカル動作中）</span>
           </div>
+        </div>
+
+        <div class="settings-group">
+          <label>ミスタイプ単語DB管理</label>
+          <button id="clear-mistakes-btn" class="icon-btn" style="width: 100%; height: auto; padding: 10px; font-size: 13px; color: #f87171; border: 1px solid rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.08); border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 15px; height: 15px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            <span>ミスタイプ単語の履歴をリセット</span>
+          </button>
         </div>
 
         <div class="settings-group">
@@ -297,6 +459,55 @@
     </div>
   </div>
 
+  <!-- Typing Result Modal -->
+  <div id="typing-result-modal" class="modal-overlay hidden" style="z-index: 1050;">
+    <div class="modal-card typing-result-card">
+      <div class="modal-header">
+        <h2>練習完了！ 🎉</h2>
+        <button id="typing-result-close-btn" class="close-btn" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="modal-body typing-result-body">
+        <div class="result-score-grid">
+          <div class="result-score-box">
+            <span class="score-label">正解率</span>
+            <span class="score-val highlight" id="result-accuracy">100%</span>
+          </div>
+          <div class="result-score-box">
+            <span class="score-label">ミスタイプ</span>
+            <span class="score-val" id="result-mistakes">0回</span>
+          </div>
+          <div class="result-score-box">
+            <span class="score-label">練習単語数</span>
+            <span class="score-val" id="result-word-count">0語</span>
+          </div>
+        </div>
+
+        <!-- Mistyped Words in this session -->
+        <div class="result-mistakes-section" id="result-mistakes-section">
+          <div class="result-section-title">
+            <span>今回ミスした単語 (<span id="result-mistake-count-badge">0</span>)</span>
+          </div>
+          <div class="result-mistakes-list" id="result-mistakes-list">
+            <!-- Dynamically populated list of mistyped words -->
+          </div>
+        </div>
+
+        <div class="result-actions">
+          <button id="typing-retry-mistakes-btn" class="primary-btn retry-btn hidden">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
+            <span>ミスした単語だけやり直す (<span id="result-retry-count">0</span>語)</span>
+          </button>
+          <button id="typing-restart-session-btn" class="secondary-btn">
+            <span>もう一度最初から練習</span>
+          </button>
+          <button id="typing-back-to-cards-btn" class="text-link-btn">
+            <span>単語帳モードに戻る</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Release Notes Overlay Modal -->
   <div id="release-notes-modal" class="modal-overlay hidden" style="z-index: 1100;">
     <div class="modal-card">
@@ -305,6 +516,18 @@
         <button id="release-notes-close-btn" class="close-btn" aria-label="リリースノートを閉じる">&times;</button>
       </div>
       <div class="modal-body release-notes-body">
+        <div class="release-item">
+          <div class="release-meta">
+            <span class="release-version">v1.7.0</span>
+            <span class="release-date">2026-09-19</span>
+          </div>
+          <ul class="release-details">
+            <li>PC専用タイピング練習機能を追加しました。「英語表示（スペル練習）」と「日本語表示（意味想起）」の2つのモードに対応。</li>
+            <li>レベル選択・単語ジャンプ・シャッフル・苦手単語フィルターに対応。</li>
+            <li>タイピングで間違えた単語は、単語帳の苦手単語（★）とは独立した「ミスタイプ単語DB」としてスプレッドシートの別タブ（TypingMistakes）およびローカルに記録。</li>
+            <li>「ミス単語のみ」フィルターや練習終了時のリザルト画面から、ミスした単語だけを何度でもやり直せる専用復習機能を搭載しました。</li>
+          </ul>
+        </div>
         <div class="release-item">
           <div class="release-meta">
             <span class="release-version">v1.6.0</span>

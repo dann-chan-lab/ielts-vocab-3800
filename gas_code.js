@@ -14,15 +14,100 @@
 function doGet(e) {
   var action = e.parameter.action;
   var wordNo = e.parameter.wordNo;
+  var wordText = e.parameter.word || '';
   
   // 1. 6つのシートから全単語データを自動集計して返す
   if (action === 'get_words') {
     return getMasterWordsFromAllSheets();
   }
   
+  // 2. タイピングミス単語関連のアクション
+  if (action === 'get_mistakes' || action === 'add_mistake' || action === 'remove_mistake' || action === 'clear_mistakes') {
+    var mistakeSheet = getOrCreateMistypedWordsSheet();
+    
+    // ミスタイプ単語の一覧取得
+    if (action === 'get_mistakes') {
+      var mData = mistakeSheet.getDataRange().getValues();
+      var mistakes = [];
+      var startIdx = 0;
+      if (mData.length > 0 && (mData[0][0] === 'WordNo' || mData[0][0] === 'No')) {
+        startIdx = 1;
+      }
+      for (var m = startIdx; m < mData.length; m++) {
+        if (mData[m][0]) {
+          var fNo = String(mData[m][0]).trim();
+          if (fNo) {
+            mistakes.push({
+              wordNo: fNo,
+              word: mData[m][1] ? String(mData[m][1]).trim() : '',
+              count: mData[m][2] ? Number(mData[m][2]) : 1,
+              lastMistypedAt: mData[m][3] ? mData[m][3] : ''
+            });
+          }
+        }
+      }
+      return jsonResponse({ success: true, mistakes: mistakes });
+    }
+    
+    // ミスタイプ単語の追加・カウントアップ
+    if (action === 'add_mistake' && wordNo) {
+      wordNo = String(wordNo).trim();
+      if (!wordNo) {
+        return jsonResponse({ success: false, error: 'Invalid wordNo' });
+      }
+      var mData = mistakeSheet.getDataRange().getValues();
+      var foundRow = -1;
+      var currentCount = 0;
+      for (var r = 1; r < mData.length; r++) {
+        if (String(mData[r][0]).trim() === wordNo) {
+          foundRow = r + 1; // 1-indexed sheet row
+          currentCount = Number(mData[r][2]) || 1;
+          break;
+        }
+      }
+      
+      var now = new Date();
+      if (foundRow !== -1) {
+        // 更新: カウント + 1 & 日時
+        mistakeSheet.getRange(foundRow, 3).setValue(currentCount + 1);
+        mistakeSheet.getRange(foundRow, 4).setValue(now);
+        if (wordText) {
+          mistakeSheet.getRange(foundRow, 2).setValue(wordText);
+        }
+      } else {
+        // 新規追加
+        mistakeSheet.appendRow([wordNo, wordText, 1, now]);
+      }
+      return jsonResponse({ success: true, action: 'add_mistake', wordNo: wordNo, count: currentCount + 1 });
+    }
+    
+    // ミスタイプ単語の削除（克服時など）
+    if (action === 'remove_mistake' && wordNo) {
+      wordNo = String(wordNo).trim();
+      var mData = mistakeSheet.getDataRange().getValues();
+      var deleted = false;
+      for (var r = mData.length - 1; r >= 1; r--) {
+        if (String(mData[r][0]).trim() === wordNo) {
+          mistakeSheet.deleteRow(r + 1);
+          deleted = true;
+        }
+      }
+      return jsonResponse({ success: true, action: 'remove_mistake', wordNo: wordNo, deleted: deleted });
+    }
+    
+    // ミスタイプ単語の一括クリア
+    if (action === 'clear_mistakes') {
+      var lastRow = mistakeSheet.getLastRow();
+      if (lastRow > 1) {
+        mistakeSheet.deleteRows(2, lastRow - 1);
+      }
+      return jsonResponse({ success: true, action: 'clear_mistakes' });
+    }
+  }
+  
   var sheet = getOrCreateWeakWordsSheet();
   
-  // 2. 苦手単語の一覧取得
+  // 3. 苦手単語の一覧取得
   if (action === 'get') {
     var data = sheet.getDataRange().getValues();
     var weakWords = [];
@@ -41,7 +126,7 @@ function doGet(e) {
     return jsonResponse({ success: true, weakWords: weakWords });
   }
   
-  // 3. 苦手単語の追加
+  // 4. 苦手単語の追加
   if (action === 'add' && wordNo) {
     wordNo = String(wordNo).trim();
     if (!wordNo) {
@@ -63,7 +148,7 @@ function doGet(e) {
     return jsonResponse({ success: true, action: 'add', wordNo: wordNo });
   }
   
-  // 4. 苦手単語の削除
+  // 5. 苦手単語の削除
   if (action === 'remove' && wordNo) {
     wordNo = String(wordNo).trim();
     var data = sheet.getDataRange().getValues();
@@ -93,7 +178,8 @@ function doPost(e) {
   var dummyE = {
     parameter: {
       action: params.action || e.parameter.action,
-      wordNo: params.wordNo || e.parameter.wordNo
+      wordNo: params.wordNo || e.parameter.wordNo,
+      word: params.word || e.parameter.word
     }
   };
   return doGet(dummyE);
@@ -185,6 +271,18 @@ function getOrCreateWeakWordsSheet() {
   if (!sheet) {
     sheet = ss.insertSheet(sheetName);
     sheet.appendRow(["WordNo", "CreatedAt"]);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function getOrCreateMistypedWordsSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetName = "TypingMistakes";
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    sheet.appendRow(["WordNo", "Word", "MistakeCount", "LastMistypedAt"]);
     sheet.setFrozenRows(1);
   }
   return sheet;
