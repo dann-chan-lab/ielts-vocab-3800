@@ -1608,6 +1608,101 @@ select {
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
+/* Visible Typing Input Field */
+.typing-input-container {
+  margin: 12px 0 16px;
+  width: 100%;
+}
+
+.typing-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.typing-input-icon {
+  position: absolute;
+  left: 16px;
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: var(--transition-smooth);
+}
+
+.typing-input-field {
+  width: 100%;
+  height: 54px;
+  padding: 0 46px 0 46px;
+  background: rgba(10, 14, 28, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  color: #fff;
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-align: center;
+  outline: none;
+  transition: var(--transition-smooth);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) inset;
+}
+
+.typing-input-field::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+  font-family: var(--font-body);
+}
+
+.typing-input-field:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-glow), 0 4px 16px rgba(0, 0, 0, 0.3) inset;
+}
+
+.typing-input-field.error {
+  border-color: #ef4444 !important;
+  color: #fca5a5 !important;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.35), 0 4px 16px rgba(0, 0, 0, 0.3) inset !important;
+  animation: inputShake 0.3s ease;
+}
+
+.typing-input-field.success {
+  border-color: var(--secondary) !important;
+  color: #5eead4 !important;
+  box-shadow: 0 0 0 4px var(--secondary-glow), 0 4px 16px rgba(0, 0, 0, 0.3) inset !important;
+}
+
+@keyframes inputShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.typing-clear-btn {
+  position: absolute;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  transition: var(--transition-smooth);
+}
+
+.typing-clear-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
 /* Example in typing card */
 .typing-example-box {
   background: rgba(0, 0, 0, 0.2);

@@ -24,7 +24,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1.7.2">
+  <link rel="stylesheet" href="index.css?v=1.7.3">
 </head>
 <body>
   <!-- Ambient background glow elements -->
@@ -301,6 +301,15 @@
           </div>
           <div class="typing-hint-peek hidden" id="typing-hint-peek">
             答え: <span id="typing-hint-word"></span>
+          </div>
+        </div>
+
+        <!-- Real Visible Typing Input Box -->
+        <div class="typing-input-container">
+          <div class="typing-input-wrapper">
+            <svg class="typing-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6" y2="8"></line><line x1="10" y1="8" x2="10" y2="8"></line><line x1="14" y1="8" x2="14" y2="8"></line><line x1="18" y1="8" x2="18" y2="8"></line><line x1="6" y1="12" x2="6" y2="12"></line><line x1="10" y1="12" x2="10" y2="12"></line><line x1="14" y1="12" x2="14" y2="12"></line><line x1="18" y1="12" x2="18" y2="12"></line><line x1="7" y1="16" x2="17" y2="16"></line></svg>
+            <input type="text" id="typing-input-field" class="typing-input-field" placeholder="ここに英単語をタイピング..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <button type="button" id="typing-clear-input-btn" class="typing-clear-btn hidden" aria-label="入力をクリア">&times;</button>
           </div>
         </div>
 
@@ -615,6 +624,6 @@
   </div>
 
   <!-- JS Logic -->
-  <script src="app.js?v=1.7.2"></script>
+  <script src="app.js?v=1.7.3"></script>
 </body>
 </html>

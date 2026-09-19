@@ -111,6 +111,8 @@ const typingProgressBar = document.getElementById('typing-progress-bar');
 
 const typingBoard = document.getElementById('typing-board');
 const typingHiddenInput = document.getElementById('typing-hidden-input');
+const typingInputField = document.getElementById('typing-input-field');
+const typingClearInputBtn = document.getElementById('typing-clear-input-btn');
 const typingCardNo = document.getElementById('typing-card-no');
 const typingCardLevel = document.getElementById('typing-card-level');
 const typingCardPos = document.getElementById('typing-card-pos');
@@ -515,9 +517,19 @@ function setupEventListeners() {
   if (typingSpeakBtn) {
     typingSpeakBtn.addEventListener('click', () => speakWordText(targetWordText));
   }
+  if (typingInputField) {
+    typingInputField.addEventListener('input', handleTypingInput);
+    typingInputField.addEventListener('keydown', handleTypingInputKeyDown);
+  }
+  if (typingClearInputBtn) {
+    typingClearInputBtn.addEventListener('click', clearTypingInput);
+  }
   if (typingBoard) {
-    typingBoard.addEventListener('click', () => {
-      if (typingHiddenInput) typingHiddenInput.focus();
+    typingBoard.addEventListener('click', (e) => {
+      // Keep input focused when clicking on typing card
+      if (typingInputField && e.target !== typingInputField) {
+        typingInputField.focus();
+      }
     });
   }
 
@@ -1627,7 +1639,7 @@ function switchAppMode(mode) {
       applyTypingFilters();
     }
     setTimeout(() => {
-      if (typingHiddenInput) typingHiddenInput.focus();
+      if (typingInputField) typingInputField.focus();
     }, 100);
   } else {
     if (navTabTyping) {
@@ -1665,7 +1677,11 @@ function setTypingMode(mode) {
     typingModeEnBtn.setAttribute('aria-checked', 'false');
   }
   renderTypingDisplay();
-  if (typingHiddenInput) typingHiddenInput.focus();
+  if (typingInputField) {
+    typingInputField.value = '';
+    typingInputField.classList.remove('error', 'success');
+    typingInputField.focus();
+  }
 }
 
 // ---------------------------------------------------------
@@ -1834,9 +1850,16 @@ function displayCurrentTypingWord() {
   renderTypingDisplay();
   updateTypingStatsUI();
   
+  if (typingInputField) {
+    typingInputField.value = '';
+    typingInputField.classList.remove('error', 'success');
+    typingInputField.focus();
+  }
+  if (typingClearInputBtn) {
+    typingClearInputBtn.classList.add('hidden');
+  }
   if (typingHiddenInput) {
     typingHiddenInput.value = '';
-    typingHiddenInput.focus();
   }
 }
 
@@ -1911,81 +1934,56 @@ function updateTypingStatsUI() {
 }
 
 // ---------------------------------------------------------
-// Keyboard Input Handler for Typing
+// Input Field Typing Handlers (Visible Input Box)
 // ---------------------------------------------------------
 
-function handleTypingKeyDown(e) {
-  // If user is focused on a select box or outside typing board, do not process
-  if (document.activeElement === typingLevelFilter || document.activeElement === typingWordSelect || document.activeElement === gasUrlInput) {
-    return;
-  }
-  
+function handleTypingInput(e) {
   if (typingFilteredWords.length === 0 || isTransitioningWord) return;
-  
   const currentWord = typingFilteredWords[typingIndex];
   if (!currentWord) return;
-  
+
   initAudioContext();
+
+  const val = typingInputField.value;
+  const expected = targetWordText;
   
-  // 1. Shortcuts
-  if (e.key === 'Tab') {
-    e.preventDefault();
-    isShowingHint = !isShowingHint;
-    typingHintPeek.classList.toggle('hidden', !isShowingHint);
+  if (!val) {
+    typingInputField.classList.remove('error', 'success');
+    if (typingClearInputBtn) typingClearInputBtn.classList.add('hidden');
+    typedCharIndex = 0;
     renderTypingDisplay();
     return;
   }
-  
-  if (e.key === 'Escape') {
-    e.preventDefault();
-    skipTypingWord();
-    return;
+
+  if (typingClearInputBtn) {
+    typingClearInputBtn.classList.remove('hidden');
   }
-  
-  // Space shortcut: If current character is NOT a space, play audio pronunciation
-  const expectedChar = targetChars[typedCharIndex];
-  if (e.key === ' ' && expectedChar !== ' ') {
-    e.preventDefault();
-    speakWordText(targetWordText);
-    return;
-  }
-  
-  // Ignore modifier keys, functional keys
-  if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) {
-    return;
-  }
-  
-  e.preventDefault();
-  
-  const pressedChar = e.key;
-  
-  // Compare case-insensitively for user convenience
-  const isMatch = pressedChar.toLowerCase() === expectedChar.toLowerCase();
-  
+
   sessionTotalKeys++;
-  
+
+  const isMatch = val.toLowerCase() === expected.slice(0, val.length).toLowerCase();
+
   if (isMatch) {
-    typedCharIndex++;
-    playAudioSound('type');
+    typingInputField.classList.remove('error');
+    typedCharIndex = val.length;
     renderTypingDisplay();
-    
-    // Check if word completed
-    if (typedCharIndex >= targetChars.length) {
+    playAudioSound('type');
+
+    // Full match check (Word complete!)
+    if (val.toLowerCase() === expected.toLowerCase()) {
       isTransitioningWord = true;
+      typingInputField.classList.add('success');
       playAudioSound('correct');
-      
-      // If this word had mistakes, record to session & DB
+
       if (currentWordMistyped) {
         sessionMistypes.add(currentWord.No);
         recordTypingMistake(currentWord);
       }
-      
-      // TTS playback if enabled
+
       if (typingTtsEnabled) {
         speakWordText(targetWordText);
       }
-      
-      // Advance to next word after brief pleasant delay
+
       setTimeout(() => {
         typingIndex++;
         if (typingIndex >= typingFilteredWords.length) {
@@ -1997,19 +1995,80 @@ function handleTypingKeyDown(e) {
     }
   } else {
     // Mistake
+    typingInputField.classList.add('error');
     currentWordMistyped = true;
     sessionMistakeKeys++;
     sessionMistypes.add(currentWord.No);
     recordTypingMistake(currentWord);
-    
+
     playAudioSound('mistake');
-    
-    // Shake animation feedback
-    typingDisplay.classList.remove('shake');
-    void typingDisplay.offsetWidth; // Trigger reflow
-    typingDisplay.classList.add('shake');
-    
     updateTypingStatsUI();
+  }
+}
+
+function handleTypingInputKeyDown(e) {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    isShowingHint = !isShowingHint;
+    typingHintPeek.classList.toggle('hidden', !isShowingHint);
+    renderTypingDisplay();
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    skipTypingWord();
+    return;
+  }
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const val = typingInputField.value.trim().toLowerCase();
+    const expected = targetWordText.toLowerCase();
+    if (val === expected) {
+      // Completed, advance
+      if (!isTransitioningWord) {
+        isTransitioningWord = true;
+        playAudioSound('correct');
+        setTimeout(() => {
+          typingIndex++;
+          if (typingIndex >= typingFilteredWords.length) {
+            showTypingResultModal();
+          } else {
+            displayCurrentTypingWord();
+          }
+        }, 350);
+      }
+    } else {
+      // Show hint on Enter if not completed
+      isShowingHint = true;
+      typingHintPeek.classList.remove('hidden');
+      renderTypingDisplay();
+    }
+  }
+}
+
+function clearTypingInput() {
+  if (typingInputField) {
+    typingInputField.value = '';
+    typingInputField.classList.remove('error', 'success');
+    typingInputField.focus();
+  }
+  if (typingClearInputBtn) {
+    typingClearInputBtn.classList.add('hidden');
+  }
+  typedCharIndex = 0;
+  renderTypingDisplay();
+}
+
+// Global typing key listener (auto-focuses input if user types anywhere in typing mode)
+function handleTypingKeyDown(e) {
+  if (document.activeElement === typingLevelFilter || document.activeElement === typingWordSelect || document.activeElement === gasUrlInput) {
+    return;
+  }
+
+  if (document.activeElement !== typingInputField && typingInputField) {
+    typingInputField.focus();
   }
 }
 
