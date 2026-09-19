@@ -11,6 +11,25 @@ let shuffleOrder = [];
 let weakWords = new Set();
 let currentAudio = null;
 
+// Number normalization helper (e.g. "1" -> "0001", "304" -> "0304")
+function normalizeWordNo(no) {
+  if (no === null || no === undefined) return '';
+  const str = String(no).trim();
+  const num = parseInt(str, 10);
+  if (!isNaN(num) && num > 0) {
+    return String(num).padStart(4, '0');
+  }
+  return str;
+}
+
+function isWordWeak(no) {
+  if (!no) return false;
+  const norm = normalizeWordNo(no);
+  const rawStr = String(no).trim();
+  const numStr = String(parseInt(no, 10));
+  return weakWords.has(norm) || weakWords.has(rawStr) || weakWords.has(numStr);
+}
+
 // Auto Listen State
 let isAutoListening = false;
 let autoListenRate = localStorage.getItem('ielts_auto_listen_rate') !== null ? parseFloat(localStorage.getItem('ielts_auto_listen_rate')) : 1.0;
@@ -618,7 +637,14 @@ function loadLocalWeakWords() {
   if (localData) {
     try {
       const parsed = JSON.parse(localData);
-      weakWords = new Set(parsed);
+      if (Array.isArray(parsed)) {
+        weakWords = new Set();
+        parsed.forEach(no => {
+          const norm = normalizeWordNo(no);
+          if (norm) weakWords.add(norm);
+          weakWords.add(String(no).trim());
+        });
+      }
     } catch (e) {
       console.error('Error parsing cached weak words', e);
       weakWords = new Set();
@@ -644,8 +670,12 @@ async function syncWithSpreadsheet() {
     
     const result = await response.json();
     if (result.success && Array.isArray(result.weakWords)) {
-      // Merge remote into local set
-      result.weakWords.forEach(no => weakWords.add(no));
+      // Merge remote into local set (store both normalized 4-digit and raw string)
+      result.weakWords.forEach(no => {
+        const norm = normalizeWordNo(no);
+        if (norm) weakWords.add(norm);
+        weakWords.add(String(no).trim());
+      });
       saveLocalWeakWords();
       
       updateSyncStatus('online', 'スプレッドシートと同期完了');
@@ -884,7 +914,7 @@ function updateActiveStates() {
   if (filteredWords.length === 0) return;
   
   const currentWord = filteredWords[currentIndex];
-  const isWeak = weakWords.has(currentWord.No);
+  const isWeak = isWordWeak(currentWord.No);
   
   if (isWeak) {
     weakToggleBtn.classList.add('active');
@@ -900,20 +930,25 @@ function toggleWeakWord() {
   if (filteredWords.length === 0) return;
   const currentWord = filteredWords[currentIndex];
   const wordNo = currentWord.No;
+  const norm = normalizeWordNo(wordNo);
+  const isWeak = isWordWeak(wordNo);
   
-  if (weakWords.has(wordNo)) {
-    weakWords.delete(wordNo);
-    sendWeakWordUpdateToGas('remove', wordNo);
+  if (isWeak) {
+    weakWords.delete(norm);
+    weakWords.delete(String(wordNo).trim());
+    weakWords.delete(String(parseInt(wordNo, 10)));
+    sendWeakWordUpdateToGas('remove', norm);
   } else {
-    weakWords.add(wordNo);
-    sendWeakWordUpdateToGas('add', wordNo);
+    weakWords.add(norm);
+    weakWords.add(String(parseInt(wordNo, 10)));
+    sendWeakWordUpdateToGas('add', norm);
   }
   
   saveLocalWeakWords();
   updateActiveStates();
   
   // If we are filtering by weak words and just removed a star, we should refresh the lists
-  if (weakFilterBtn.getAttribute('aria-pressed') === 'true' && !weakWords.has(wordNo)) {
+  if (weakFilterBtn.getAttribute('aria-pressed') === 'true' && !isWordWeak(wordNo)) {
     // If it's the last word in the filtered list, we need to adapt the index
     setTimeout(() => {
       applyFilters();
@@ -935,7 +970,7 @@ function applyFilters() {
     if (selectedLevel !== 'all' && word.Level !== selectedLevel) return false;
     
     // Weak words match
-    if (isWeakOnly && !weakWords.has(word.No)) return false;
+    if (isWeakOnly && !isWordWeak(word.No)) return false;
     
     // Search match
     if (searchTerm) {
@@ -1343,7 +1378,7 @@ function jumpToWord(word) {
   }
 
   const isWeakOnly = weakFilterBtn.getAttribute('aria-pressed') === 'true';
-  if (isWeakOnly && !weakWords.has(word.No)) {
+  if (isWeakOnly && !isWordWeak(word.No)) {
     weakFilterBtn.setAttribute('aria-pressed', 'false');
   }
 
@@ -1499,7 +1534,9 @@ function loadLocalTypingMistakes() {
         typingMistakesMap.clear();
         parsed.forEach(item => {
           if (item && item.wordNo) {
-            typingMistakesMap.set(item.wordNo, item);
+            const normNo = normalizeWordNo(item.wordNo);
+            item.wordNo = normNo;
+            typingMistakesMap.set(normNo, item);
           }
         });
       }
@@ -1529,7 +1566,7 @@ function updateMistakeBadgeUI() {
 
 function recordTypingMistake(word) {
   if (!word || !word.No) return;
-  const wordNo = word.No;
+  const wordNo = normalizeWordNo(word.No);
   const existing = typingMistakesMap.get(wordNo);
   const nowStr = new Date().toISOString();
   
@@ -1561,13 +1598,15 @@ async function syncMistakesWithSpreadsheet() {
     if (result.success && Array.isArray(result.mistakes)) {
       result.mistakes.forEach(item => {
         if (!item || !item.wordNo) return;
-        const current = typingMistakesMap.get(item.wordNo);
+        const normNo = normalizeWordNo(item.wordNo);
+        item.wordNo = normNo;
+        const current = typingMistakesMap.get(normNo);
         if (current) {
           current.count = Math.max(current.count || 1, item.count || 1);
           current.word = item.word || current.word;
         } else {
-          typingMistakesMap.set(item.wordNo, {
-            wordNo: item.wordNo,
+          typingMistakesMap.set(normNo, {
+            wordNo: normNo,
             word: item.word,
             count: item.count || 1,
             lastAt: item.lastMistypedAt || ''
@@ -1682,10 +1721,10 @@ function applyTypingFilters() {
     if (selectedLevel !== 'all' && word.Level !== selectedLevel) return false;
     
     // Weak words filter (from flashcards ★)
-    if (typingIsWeakOnly && !weakWords.has(word.No)) return false;
+    if (typingIsWeakOnly && !isWordWeak(word.No)) return false;
     
     // Mistyped words only filter
-    if (typingIsMistakeOnly && !typingMistakesMap.has(word.No)) return false;
+    if (typingIsMistakeOnly && !typingMistakesMap.has(normalizeWordNo(word.No))) return false;
     
     return true;
   });
@@ -1763,18 +1802,24 @@ function toggleWeakWordInTyping() {
   if (!word) return;
   
   const wordNo = word.No;
-  if (weakWords.has(wordNo)) {
-    weakWords.delete(wordNo);
-    sendWeakWordUpdateToGas('remove', wordNo);
+  const norm = normalizeWordNo(wordNo);
+  const isWeak = isWordWeak(wordNo);
+  
+  if (isWeak) {
+    weakWords.delete(norm);
+    weakWords.delete(String(wordNo).trim());
+    weakWords.delete(String(parseInt(wordNo, 10)));
+    sendWeakWordUpdateToGas('remove', norm);
   } else {
-    weakWords.add(wordNo);
-    sendWeakWordUpdateToGas('add', wordNo);
+    weakWords.add(norm);
+    weakWords.add(String(parseInt(wordNo, 10)));
+    sendWeakWordUpdateToGas('add', norm);
   }
   saveLocalWeakWords();
   
   // Update star icon in typing card
-  const isWeak = weakWords.has(wordNo);
-  typingCardWeakBtn.classList.toggle('active', isWeak);
+  const currentIsWeak = isWordWeak(wordNo);
+  typingCardWeakBtn.classList.toggle('active', currentIsWeak);
   updateActiveStates(); // Keep flashcard in sync
 }
 
@@ -1822,7 +1867,7 @@ function displayCurrentTypingWord() {
   typingExampleJa.textContent = word.Example_JA || '';
   
   // Sync weak star state
-  typingCardWeakBtn.classList.toggle('active', weakWords.has(word.No));
+  typingCardWeakBtn.classList.toggle('active', isWordWeak(word.No));
   
   // Reset hint
   typingHintPeek.classList.add('hidden');

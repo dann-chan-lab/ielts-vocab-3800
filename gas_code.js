@@ -117,9 +117,16 @@ function doGet(e) {
     }
     for (var i = startRow; i < data.length; i++) {
       if (data[i][0]) {
-        var formattedNo = String(data[i][0]).trim();
-        if (formattedNo) {
-          weakWords.push(formattedNo);
+        var rawVal = String(data[i][0]).trim();
+        if (rawVal) {
+          weakWords.push(rawVal);
+          var num = parseInt(rawVal, 10);
+          if (!isNaN(num) && num > 0) {
+            var padded = ('0000' + num).slice(-4);
+            if (padded !== rawVal) {
+              weakWords.push(padded);
+            }
+          }
         }
       }
     }
@@ -132,11 +139,13 @@ function doGet(e) {
     if (!wordNo) {
       return jsonResponse({ success: false, error: 'Invalid wordNo' });
     }
-    
+    var targetNum = parseInt(wordNo, 10);
     var data = sheet.getDataRange().getValues();
     var exists = false;
     for (var i = 0; i < data.length; i++) {
-      if (String(data[i][0]).trim() === wordNo) {
+      var cellVal = String(data[i][0]).trim();
+      var cellNum = parseInt(cellVal, 10);
+      if (cellVal === wordNo || (!isNaN(targetNum) && cellNum === targetNum)) {
         exists = true;
         break;
       }
@@ -151,10 +160,13 @@ function doGet(e) {
   // 5. 苦手単語の削除
   if (action === 'remove' && wordNo) {
     wordNo = String(wordNo).trim();
+    var targetNum = parseInt(wordNo, 10);
     var data = sheet.getDataRange().getValues();
     var deleted = false;
     for (var i = data.length - 1; i >= 0; i--) {
-      if (String(data[i][0]).trim() === wordNo) {
+      var cellVal = String(data[i][0]).trim();
+      var cellNum = parseInt(cellVal, 10);
+      if (cellVal === wordNo || (!isNaN(targetNum) && cellNum === targetNum)) {
         sheet.deleteRow(i + 1);
         deleted = true;
       }
