@@ -24,7 +24,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1.7.5">
+  <link rel="stylesheet" href="index.css?v=1.7.6">
 </head>
 <body>
   <!-- Ambient background glow elements -->
@@ -33,23 +33,14 @@
   <div class="bg-glow glow-3"></div>
 
   <div class="app-container" id="main-app-container">
-    <!-- Navigation Tabs (Cards vs Typing) -->
-    <nav class="app-nav-tabs" aria-label="学習モード切替">
-      <button type="button" id="nav-tab-flashcard" class="nav-tab active" aria-selected="true" onclick="switchAppMode('flashcard')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px; flex-shrink: 0;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-        <span>単語帳</span>
-      </button>
-      <button type="button" id="nav-tab-typing" class="nav-tab" aria-selected="false" onclick="switchAppMode('typing')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px; flex-shrink: 0;"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6" y2="8"></line><line x1="10" y1="8" x2="10" y2="8"></line><line x1="14" y1="8" x2="14" y2="8"></line><line x1="18" y1="8" x2="18" y2="8"></line><line x1="6" y1="12" x2="6" y2="12"></line><line x1="10" y1="12" x2="10" y2="12"></line><line x1="14" y1="12" x2="14" y2="12"></line><line x1="18" y1="12" x2="18" y2="12"></line><line x1="7" y1="16" x2="17" y2="16"></line></svg>
-        <span>タイピング <span class="pc-badge">PC</span></span>
-      </button>
-    </nav>
-
     <!-- Header (Flashcard Mode) -->
     <header class="app-header" id="flashcard-header">
       <div class="header-main">
         <h1>IELTS <span class="text-gradient">Vocab 3800</span></h1>
         <div class="header-actions" style="display: flex; gap: 8px;">
+          <button id="open-typing-btn" class="icon-btn pc-only" aria-label="タイピング練習 (PC)" title="タイピング練習 (PC)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6" y2="8"></line><line x1="10" y1="8" x2="10" y2="8"></line><line x1="14" y1="8" x2="14" y2="8"></line><line x1="18" y1="8" x2="18" y2="8"></line><line x1="6" y1="12" x2="6" y2="12"></line><line x1="10" y1="12" x2="10" y2="12"></line><line x1="14" y1="12" x2="14" y2="12"></line><line x1="18" y1="12" x2="18" y2="12"></line><line x1="7" y1="16" x2="17" y2="16"></line></svg>
+          </button>
           <button id="auto-listen-btn" class="icon-btn" aria-label="自動リスニングを開始" title="自動リスニング">
             <svg class="play-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
             <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
@@ -194,6 +185,18 @@
 
     <!-- Main Content (Typing Mode: PC-oriented) -->
     <main class="app-main typing-main hidden" id="typing-view">
+      <!-- Typing Top Header with Return to Wordbook Button -->
+      <div class="typing-top-bar">
+        <button type="button" id="typing-back-btn" class="typing-back-btn" aria-label="単語帳に戻る" title="単語帳に戻る" onclick="switchAppMode('flashcard')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          <span>単語帳に戻る</span>
+        </button>
+        <div class="typing-header-title">
+          <span>タイピング練習</span>
+          <span class="pc-badge">PC</span>
+        </div>
+      </div>
+
       <!-- Typing Top Bar: Controls & Filters -->
       <div class="typing-header-controls">
         <div class="typing-mode-segmented-control" role="radiogroup" aria-label="出題形式">
@@ -624,6 +627,6 @@
   </div>
 
   <!-- JS Logic -->
-  <script src="app.js?v=1.7.5"></script>
+  <script src="app.js?v=1.7.6"></script>
 </body>
 </html>

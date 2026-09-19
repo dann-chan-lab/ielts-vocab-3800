@@ -30,6 +30,19 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.hidden {
+  display: none !important;
+}
+
+.pc-only {
+  display: none !important;
+}
+
+@media (min-width: 769px) {
+  .pc-only {
+    display: flex !important;
+  }
+}
 
 body {
   font-family: var(--font-body);
@@ -1205,36 +1218,27 @@ select {
    Typing Practice Mode & Nav Tabs
    ========================================= */
 
-/* Navigation Tabs (PC Only: hidden on mobile) */
-.app-nav-tabs {
-  display: none !important;
-}
-
-@media (min-width: 769px) {
-  .app-nav-tabs {
-    display: flex !important;
-    background: rgba(15, 20, 38, 0.85);
-    padding: 4px;
-    border-radius: 14px;
-    border: 1px solid var(--bg-card-border);
-    margin-bottom: 12px;
-    gap: 4px;
-    flex-shrink: 0;
-    width: 100%;
-  }
-}
-
-.nav-tab {
-  flex: 1;
+/* Typing Screen Top Bar & Back Button */
+.typing-top-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 2px 0;
+  flex-shrink: 0;
+}
+
+.typing-back-btn {
+  display: flex !important;
+  align-items: center;
   gap: 8px;
-  padding: 8px 14px;
-  background: transparent !important;
-  border: 1px solid transparent !important;
-  border-radius: 10px;
-  color: var(--text-muted) !important;
+  width: auto !important;
+  padding: 8px 16px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--bg-card-border);
+  color: var(--text-main);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 600;
@@ -1244,24 +1248,26 @@ select {
   transition: var(--transition-smooth);
 }
 
-.nav-tab:hover {
-  color: var(--text-main) !important;
+.typing-back-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateX(-2px);
 }
 
-.nav-tab svg {
-  width: 18px !important;
-  height: 18px !important;
-  min-width: 18px !important;
-  min-height: 18px !important;
-  flex-shrink: 0 !important;
-  display: block;
+.typing-back-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
-.nav-tab.active {
-  background: rgba(99, 102, 241, 0.25) !important;
-  color: var(--text-main) !important;
-  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.25);
-  border: 1px solid rgba(99, 102, 241, 0.45) !important;
+.typing-header-title {
+  font-family: var(--font-title);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .pc-badge {

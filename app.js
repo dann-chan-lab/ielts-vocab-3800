@@ -52,8 +52,8 @@ let touchEndX = 0;
 
 // Main Navigation Elements
 const mainAppContainer = document.getElementById('main-app-container');
-const navTabFlashcard = document.getElementById('nav-tab-flashcard');
-const navTabTyping = document.getElementById('nav-tab-typing');
+const openTypingBtn = document.getElementById('open-typing-btn');
+const typingBackBtn = document.getElementById('typing-back-btn');
 const flashcardHeader = document.getElementById('flashcard-header');
 const flashcardView = document.getElementById('flashcard-view');
 const typingView = document.getElementById('typing-view');
@@ -227,12 +227,12 @@ async function loadWordsFromSources() {
 
 // Initialization
 window.addEventListener('DOMContentLoaded', () => {
-  // Bind Nav Tabs immediately (so they work regardless of async init timing)
-  if (navTabFlashcard) {
-    navTabFlashcard.addEventListener('click', () => switchAppMode('flashcard'));
+  // Bind Mode Switching Buttons
+  if (openTypingBtn) {
+    openTypingBtn.addEventListener('click', () => switchAppMode('typing'));
   }
-  if (navTabTyping) {
-    navTabTyping.addEventListener('click', () => switchAppMode('typing'));
+  if (typingBackBtn) {
+    typingBackBtn.addEventListener('click', () => switchAppMode('flashcard'));
   }
 
   // Load local weak words cache first
@@ -469,12 +469,12 @@ function setupEventListeners() {
     });
   }
 
-  // Navigation Tabs Switching
-  if (navTabFlashcard) {
-    navTabFlashcard.addEventListener('click', () => switchAppMode('flashcard'));
+  // Mode Switching Buttons
+  if (openTypingBtn) {
+    openTypingBtn.addEventListener('click', () => switchAppMode('typing'));
   }
-  if (navTabTyping) {
-    navTabTyping.addEventListener('click', () => switchAppMode('typing'));
+  if (typingBackBtn) {
+    typingBackBtn.addEventListener('click', () => switchAppMode('flashcard'));
   }
 
   // Typing Mode Event Listeners
@@ -1620,15 +1620,6 @@ function switchAppMode(mode) {
   
   if (mode === 'typing') {
     stopAutoListening();
-    if (navTabFlashcard) {
-      navTabFlashcard.classList.remove('active');
-      navTabFlashcard.setAttribute('aria-selected', 'false');
-    }
-    if (navTabTyping) {
-      navTabTyping.classList.add('active');
-      navTabTyping.setAttribute('aria-selected', 'true');
-    }
-    
     if (flashcardHeader) flashcardHeader.classList.add('hidden');
     if (flashcardView) flashcardView.classList.add('hidden');
     if (typingView) typingView.classList.remove('hidden');
@@ -1646,15 +1637,6 @@ function switchAppMode(mode) {
       if (typingInputField) typingInputField.focus();
     }, 100);
   } else {
-    if (navTabTyping) {
-      navTabTyping.classList.remove('active');
-      navTabTyping.setAttribute('aria-selected', 'false');
-    }
-    if (navTabFlashcard) {
-      navTabFlashcard.classList.add('active');
-      navTabFlashcard.setAttribute('aria-selected', 'true');
-    }
-    
     if (typingView) typingView.classList.add('hidden');
     if (flashcardHeader) flashcardHeader.classList.remove('hidden');
     if (flashcardView) flashcardView.classList.remove('hidden');
