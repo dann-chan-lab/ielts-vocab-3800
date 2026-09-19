@@ -1612,6 +1612,10 @@ async function clearAllMistakes() {
 // ---------------------------------------------------------
 
 function switchAppMode(mode) {
+  // Mobile devices only support flashcard mode (typing is strictly for PC)
+  if (mode === 'typing' && window.innerWidth <= 768) {
+    mode = 'flashcard';
+  }
   currentAppMode = mode;
   
   if (mode === 'typing') {
@@ -2152,5 +2156,12 @@ function restartTypingSession() {
   hideTypingResultModal();
   applyTypingFilters();
 }
+
+// Window resize guard: ensure mobile always stays in flashcard mode
+window.addEventListener('resize', () => {
+  if (window.innerWidth <= 768 && currentAppMode === 'typing') {
+    switchAppMode('flashcard');
+  }
+});
 
 

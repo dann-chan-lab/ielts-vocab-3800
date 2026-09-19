@@ -30,16 +30,6 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-button {
-  font-family: inherit;
-  font-size: inherit;
-  color: inherit;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-}
 
 body {
   font-family: var(--font-body);
@@ -1215,17 +1205,23 @@ select {
    Typing Practice Mode & Nav Tabs
    ========================================= */
 
-/* Navigation Tabs */
+/* Navigation Tabs (PC Only: hidden on mobile) */
 .app-nav-tabs {
-  display: flex;
-  background: rgba(15, 20, 38, 0.85);
-  padding: 4px;
-  border-radius: 14px;
-  border: 1px solid var(--bg-card-border);
-  margin-bottom: 12px;
-  gap: 4px;
-  flex-shrink: 0;
-  width: 100%;
+  display: none !important;
+}
+
+@media (min-width: 769px) {
+  .app-nav-tabs {
+    display: flex !important;
+    background: rgba(15, 20, 38, 0.85);
+    padding: 4px;
+    border-radius: 14px;
+    border: 1px solid var(--bg-card-border);
+    margin-bottom: 12px;
+    gap: 4px;
+    flex-shrink: 0;
+    width: 100%;
+  }
 }
 
 .nav-tab {
@@ -1243,6 +1239,8 @@ select {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
   transition: var(--transition-smooth);
 }
 
