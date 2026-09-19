@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ielts-vocab-v12';
+const CACHE_NAME = 'ielts-vocab-v15';
 const ASSETS = [
   './',
   './index.html',
@@ -20,7 +20,7 @@ self.addEventListener('install', (e) => {
   );
 });
 
-// Activate Event
+// Activate Event - Clear old caches immediately
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
@@ -36,16 +36,17 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Fetch Event - Stale-While-Revalidate Strategy
+// Fetch Event - Network-First for HTML/CSS/JS (Always fresh), Cache-First for heavy assets
 self.addEventListener('fetch', (e) => {
-  // Only handle GET requests and skip Google Sheets / GAS API calls so they don't get cached improperly
+  // Only handle GET requests and skip Google Sheets / GAS API calls
   if (e.request.method !== 'GET' || e.request.url.includes('script.google.com') || e.request.url.includes('sheets.googleapis.com')) {
     return;
   }
 
+  // Network-First strategy: Always fetch freshest assets first when online
   e.respondWith(
-    caches.match(e.request).then((cachedResponse) => {
-      const fetchPromise = fetch(e.request).then((networkResponse) => {
+    fetch(e.request)
+      .then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -53,11 +54,10 @@ self.addEventListener('fetch', (e) => {
           });
         }
         return networkResponse;
-      }).catch(() => {
-        // Silent catch for offline fetch failures
-      });
-
-      return cachedResponse || fetchPromise;
-    })
+      })
+      .catch(() => {
+        // Offline fallback
+        return caches.match(e.request);
+      })
   );
 });

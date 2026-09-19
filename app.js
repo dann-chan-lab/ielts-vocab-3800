@@ -225,6 +225,14 @@ async function loadWordsFromSources() {
 
 // Initialization
 window.addEventListener('DOMContentLoaded', () => {
+  // Bind Nav Tabs immediately (so they work regardless of async init timing)
+  if (navTabFlashcard) {
+    navTabFlashcard.addEventListener('click', () => switchAppMode('flashcard'));
+  }
+  if (navTabTyping) {
+    navTabTyping.addEventListener('click', () => switchAppMode('typing'));
+  }
+
   // Load local weak words cache first
   loadLocalWeakWords();
   loadLocalTypingMistakes();
@@ -234,6 +242,8 @@ window.addEventListener('DOMContentLoaded', () => {
     navigator.serviceWorker.register('./sw.js')
       .then((registration) => {
         console.log('Service Worker Registered');
+        // Force check for updated service worker immediately
+        registration.update();
         
         // Listen for updates and automatically reload the page to apply the new assets
         let refreshing = false;
@@ -1594,39 +1604,52 @@ function switchAppMode(mode) {
   
   if (mode === 'typing') {
     stopAutoListening();
-    navTabFlashcard.classList.remove('active');
-    navTabFlashcard.setAttribute('aria-selected', 'false');
-    navTabTyping.classList.add('active');
-    navTabTyping.setAttribute('aria-selected', 'true');
+    if (navTabFlashcard) {
+      navTabFlashcard.classList.remove('active');
+      navTabFlashcard.setAttribute('aria-selected', 'false');
+    }
+    if (navTabTyping) {
+      navTabTyping.classList.add('active');
+      navTabTyping.setAttribute('aria-selected', 'true');
+    }
     
-    flashcardHeader.classList.add('hidden');
-    flashcardView.classList.add('hidden');
-    typingView.classList.remove('hidden');
-    mainAppContainer.classList.add('typing-active');
+    if (flashcardHeader) flashcardHeader.classList.add('hidden');
+    if (flashcardView) flashcardView.classList.add('hidden');
+    if (typingView) typingView.classList.remove('hidden');
+    if (mainAppContainer) mainAppContainer.classList.add('typing-active');
     
     // Set level filter to match flashcard level if possible
     if (typingLevelFilter && levelFilter) {
       typingLevelFilter.value = levelFilter.value;
     }
     
-    applyTypingFilters();
+    if (allWords && allWords.length > 0) {
+      applyTypingFilters();
+    }
     setTimeout(() => {
       if (typingHiddenInput) typingHiddenInput.focus();
     }, 100);
   } else {
-    navTabTyping.classList.remove('active');
-    navTabTyping.setAttribute('aria-selected', 'false');
-    navTabFlashcard.classList.add('active');
-    navTabFlashcard.setAttribute('aria-selected', 'true');
+    if (navTabTyping) {
+      navTabTyping.classList.remove('active');
+      navTabTyping.setAttribute('aria-selected', 'false');
+    }
+    if (navTabFlashcard) {
+      navTabFlashcard.classList.add('active');
+      navTabFlashcard.setAttribute('aria-selected', 'true');
+    }
     
-    typingView.classList.add('hidden');
-    flashcardHeader.classList.remove('hidden');
-    flashcardView.classList.remove('hidden');
-    mainAppContainer.classList.remove('typing-active');
+    if (typingView) typingView.classList.add('hidden');
+    if (flashcardHeader) flashcardHeader.classList.remove('hidden');
+    if (flashcardView) flashcardView.classList.remove('hidden');
+    if (mainAppContainer) mainAppContainer.classList.remove('typing-active');
     
-    applyFilters();
+    if (allWords && allWords.length > 0) {
+      applyFilters();
+    }
   }
 }
+window.switchAppMode = switchAppMode;
 
 function setTypingMode(mode) {
   typingMode = mode;
